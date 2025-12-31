@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.example.appfobia"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.appfobia"
@@ -50,10 +50,7 @@ dependencies {
     implementation("androidx.navigation:navigation-ui-ktx:2.7.5")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
 
-    // ARCore (opcional)
     implementation("com.google.ar:core:1.42.0")
-
-
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

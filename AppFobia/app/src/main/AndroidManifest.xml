@@ -3,16 +3,12 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.example.appfobia">
 
-    <!-- Permissões necessárias -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.google.ar.core.permission.CAMERA" />
 
-    <!-- ARCore é obrigatório -->
     <uses-feature android:name="android.hardware.camera.ar" android:required="true" />
     <uses-feature android:name="android.hardware.camera" android:required="true" />
-
-    <!-- VR (Cardboard) - Opcional -->
     <uses-feature
         android:name="android.hardware.vr.high_performance"
         android:required="false" />
@@ -44,9 +40,10 @@
             android:exported="false" />
 
         <activity
-            android:name=".ui.VRActivity"
+            android:name=".ui.VRActivity360"
             android:screenOrientation="landscape"
-            android:exported="false" />
+            android:exported="false"
+            android:enableVrMode="@string/cardboard_vr_mode_component" />
 
     </application>
 

@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Terapia de Exposição RA</string>
-    <string name="select_exposure">Selecione o tipo de exposição</string>
-    <string name="roller_coaster">🎢 Roller Coaster</string>
-    <string name="heights">⛰️ Alturas</string>
-    <string name="closed_spaces">🚪 Espaços Fechados</string>
-    <string name="crowds">👥 Multidões</string>
-    <string name="configuration">Configuração</string>
+    <string name="app_name">Terapia de Exposicao RA</string>
+    <string name="select_exposure">Selecione o tipo de exposicao</string>
+    <string name="roller_coaster">Roller Coaster</string>
+    <string name="heights">Alturas</string>
+    <string name="closed_spaces">Espacos Fechados</string>
+    <string name="crowds">Multidoes</string>
+    <string name="configuration">Configuracao</string>
     <string name="intensity">Intensidade</string>
-    <string name="start">Iniciar Exposição</string>
+    <string name="start">Iniciar Exposicao</string>
     <string name="back">Voltar</string>
-    <string name="end_session">Encerrar Sessão</string>
+    <string name="end_session">Encerrar Sessao</string>
     <string name="status">Status</string>
     <string name="timer">Tempo</string>
+    <string name="cardboard_vr_mode_component">com.google.vr.sdk.base/com.google.vr.sdk.base.GvrView</string>
 </resources>

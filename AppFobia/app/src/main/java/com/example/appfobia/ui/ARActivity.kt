@@ -4,6 +4,9 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.opengl.GLSurfaceView
 import android.os.Bundle
+import android.util.Log
+import android.widget.FrameLayout
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -12,30 +15,42 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.textview.MaterialTextView
 import com.example.appfobia.ExposureType
 import com.example.appfobia.R
-import com.example.appfobia.ar.ARCoreManager
+import com.example.appfobia.ar.ARCoreRenderer
+import com.example.appfobia.ar.ARCoreSessionManager
 import com.example.appfobia.ar.SceneManager
-import com.example.appfobia.ar.SimpleARRenderer
 
 class ARActivity : AppCompatActivity() {
 
     private var isRunning = false
     private var intensity: Int = 5
     private var exposureType: String = ""
-    private lateinit var arCoreManager: ARCoreManager
-    private lateinit var sceneManager: SceneManager
-    private lateinit var glSurfaceView: GLSurfaceView
-    private lateinit var renderer: SimpleARRenderer
-    private val CAMERA_PERMISSION_CODE = 100
     private var elapsedSeconds = 0
     private var sessionTimer: Thread? = null
 
+    private lateinit var glSurfaceView: GLSurfaceView
+    private lateinit var renderer: ARCoreRenderer
+    private lateinit var arCoreManager: ARCoreSessionManager
+    private lateinit var sceneManager: SceneManager
+
+    private val CAMERA_PERMISSION_CODE = 100
+
+    companion object {
+        private const val TAG = "ARActivity"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_ar)
+
+        Log.d(TAG, "onCreate ARActivity iniciado")
 
         try {
+            setContentView(R.layout.activity_ar)
+            Log.d(TAG, "Layout carregado")
+
             intensity = intent.getIntExtra("intensity", 5)
-            exposureType = intent.getStringExtra("exposure_type") ?: ""
+            exposureType = intent.getStringExtra("exposure_type") ?: "ROLLER_COASTER"
+
+            Log.d(TAG, "Parametros: exposure=$exposureType, intensity=$intensity")
 
             val tvStatus = findViewById<MaterialTextView>(R.id.tv_ar_status)
             val tvIntensity = findViewById<MaterialTextView>(R.id.tv_current_intensity)
@@ -44,54 +59,53 @@ class ARActivity : AppCompatActivity() {
             val btnIncrease = findViewById<MaterialButton>(R.id.btn_increase_intensity)
             val btnDecrease = findViewById<MaterialButton>(R.id.btn_decrease_intensity)
             val btnEnd = findViewById<MaterialButton>(R.id.btn_end_session)
-            val arContainer = findViewById<android.widget.FrameLayout>(R.id.ar_container)
+            val arContainer = findViewById<FrameLayout>(R.id.ar_container)
 
-            // Criar GLSurfaceView para renderização
-            glSurfaceView = GLSurfaceView(this)
-            renderer = SimpleARRenderer()
-            glSurfaceView.setRenderer(renderer)
-            glSurfaceView.renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
-            arContainer.addView(glSurfaceView, 0) // Adicionar como primeira view
-
-            // Inicializar managers
-            arCoreManager = ARCoreManager(this)
-            sceneManager = SceneManager(this)
-
-            tvStatus.text = "Preparando exposição..."
+            tvStatus.text = "Inicializando ARCore..."
             tvIntensity.text = "Intensidade: $intensity/10"
 
-            // Configurar renderer com tipo de exposição
+            arCoreManager = ARCoreSessionManager(this)
+            sceneManager = SceneManager(this)
+
+            glSurfaceView = GLSurfaceView(this)
+            renderer = ARCoreRenderer()
+            glSurfaceView.setRenderer(renderer)
+            glSurfaceView.renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
+            arContainer.addView(glSurfaceView, 0)
+
+            Log.d(TAG, "GLSurfaceView adicionada")
+
             try {
                 val exposureEnum = ExposureType.valueOf(exposureType)
                 renderer.setExposureType(exposureEnum.name)
                 renderer.setIntensity(intensity)
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e(TAG, "Erro ao definir tipo de exposicao", e)
             }
 
-            // Verificar permissão de câmera
             if (ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.CAMERA
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
+                Log.d(TAG, "Pedindo permissao de camera")
                 ActivityCompat.requestPermissions(
                     this,
                     arrayOf(Manifest.permission.CAMERA),
                     CAMERA_PERMISSION_CODE
                 )
             } else {
-                initializeAR(tvStatus)
+                initializeARCore(tvStatus)
             }
 
             btnPlay.setOnClickListener {
                 isRunning = !isRunning
-                tvStatus.text = if (isRunning) {
+                if (isRunning) {
                     startTimer(tvTimer)
-                    "Em andamento - ${getExposureTypeName()}"
+                    tvStatus.text = "Ativo - ${getExposureTypeName()}"
                 } else {
                     stopTimer()
-                    "Pausado"
+                    tvStatus.text = "Pausado"
                 }
                 btnPlay.setImageResource(
                     if (isRunning) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
@@ -119,25 +133,39 @@ class ARActivity : AppCompatActivity() {
                 finishSession()
             }
 
-            // Mostrar descrição da cena
-            val exposureTypeEnum = ExposureType.valueOf(exposureType)
-            tvStatus.text = sceneManager.getSceneDescription(exposureTypeEnum)
+            try {
+                val exposureTypeEnum = ExposureType.valueOf(exposureType)
+                tvStatus.text = "ARCore - ${sceneManager.getSceneDescription(exposureTypeEnum).take(40)}"
+            } catch (e: Exception) {
+                Log.e(TAG, "Erro ao carregar descricao", e)
+            }
+
+            Log.d(TAG, "ARActivity inicializada com sucesso")
 
         } catch (e: Exception) {
+            Log.e(TAG, "Erro fatal no onCreate", e)
             e.printStackTrace()
             finish()
         }
     }
 
-    private fun initializeAR(tvStatus: MaterialTextView) {
-        if (arCoreManager.isARCoreAvailable()) {
-            if (arCoreManager.initializeARCore()) {
-                tvStatus.text = "ARCore iniciado - ${getExposureTypeName()}"
+    private fun initializeARCore(tvStatus: MaterialTextView) {
+        Log.d(TAG, "Inicializando ARCore")
+
+        if (arCoreManager.checkARCoreSupport()) {
+            if (arCoreManager.initializeSession()) {
+                arCoreManager.getSession()?.let { session ->
+                    renderer.setARSession(session)
+                    tvStatus.text = "ARCore Ativo - ${getExposureTypeName()}"
+                    Log.d(TAG, "ARCore inicializado com sucesso")
+                }
             } else {
-                tvStatus.text = "Aguardando ARCore..."
+                tvStatus.text = "Erro ao inicializar ARCore"
+                Log.e(TAG, "Falha ao inicializar sessao ARCore")
             }
         } else {
-            tvStatus.text = "Dispositivo sem suporte ARCore. Modo simulação ativado."
+            tvStatus.text = "ARCore nao suportado - Modo Simulacao"
+            Log.w(TAG, "Dispositivo nao suporta ARCore")
         }
     }
 
@@ -145,9 +173,9 @@ class ARActivity : AppCompatActivity() {
         return when (exposureType) {
             "ROLLER_COASTER" -> "Roller Coaster"
             "HEIGHTS" -> "Alturas"
-            "CLOSED_SPACES" -> "Espaços Fechados"
-            "CROWDS" -> "Multidões"
-            else -> "Exposição"
+            "CLOSED_SPACES" -> "Espacos Fechados"
+            "CROWDS" -> "Multidoes"
+            else -> "Exposicao Padrao"
         }
     }
 
@@ -156,12 +184,17 @@ class ARActivity : AppCompatActivity() {
         elapsedSeconds = 0
         sessionTimer = Thread {
             while (isRunning && !Thread.currentThread().isInterrupted) {
-                Thread.sleep(1000)
-                elapsedSeconds++
-                val minutes = elapsedSeconds / 60
-                val seconds = elapsedSeconds % 60
-                runOnUiThread {
-                    tvTimer.text = String.format("Tempo: %02d:%02d", minutes, seconds)
+                try {
+                    Thread.sleep(1000)
+                    elapsedSeconds++
+                    val minutes = elapsedSeconds / 60
+                    val seconds = elapsedSeconds % 60
+                    runOnUiThread {
+                        tvTimer.text = String.format("Tempo: %02d:%02d", minutes, seconds)
+                    }
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    break
                 }
             }
         }
@@ -175,7 +208,8 @@ class ARActivity : AppCompatActivity() {
 
     private fun finishSession() {
         stopTimer()
-        arCoreManager.close()
+        arCoreManager.pauseSession()
+        arCoreManager.closeSession()
         finish()
     }
 
@@ -187,26 +221,32 @@ class ARActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == CAMERA_PERMISSION_CODE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                initializeAR(findViewById(R.id.tv_ar_status))
+                arCoreManager.setCameraPermissionGranted(true)
+                initializeARCore(findViewById(R.id.tv_ar_status))
+            } else {
+                Log.w(TAG, "Permissao de camera negada")
             }
         }
     }
 
     override fun onResume() {
         super.onResume()
+        Log.d(TAG, "onResume")
         glSurfaceView.onResume()
-        arCoreManager.resume()
+        arCoreManager.resumeSession()
     }
 
     override fun onPause() {
-        super.onPause()
+        Log.d(TAG, "onPause")
         glSurfaceView.onPause()
-        arCoreManager.pause()
+        arCoreManager.pauseSession()
+        super.onPause()
     }
 
     override fun onDestroy() {
-        super.onDestroy()
+        Log.d(TAG, "onDestroy")
         stopTimer()
-        arCoreManager.close()
+        arCoreManager.closeSession()
+        super.onDestroy()
     }
 }
