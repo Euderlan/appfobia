@@ -1,12 +1,9 @@
-package com.example.therapyra
+package com.example.appfobia
 
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import androidx.constraintlayout.widget.ConstraintLayout
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.card.MaterialCardView
-import com.google.android.material.textview.MaterialTextView
 
 class MainActivity : AppCompatActivity() {
 
@@ -14,27 +11,31 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Referências aos elementos
-        val btnRollerCoaster = findViewById<MaterialButton>(R.id.btn_roller_coaster)
-        val btnHeights = findViewById<MaterialButton>(R.id.btn_heights)
-        val btnClosedSpaces = findViewById<MaterialButton>(R.id.btn_closed_spaces)
-        val btnCrowds = findViewById<MaterialButton>(R.id.btn_crowds)
+        try {
+            // Referências aos elementos
+            val btnRollerCoaster = findViewById<MaterialButton>(R.id.btn_roller_coaster)
+            val btnHeights = findViewById<MaterialButton>(R.id.btn_heights)
+            val btnClosedSpaces = findViewById<MaterialButton>(R.id.btn_closed_spaces)
+            val btnCrowds = findViewById<MaterialButton>(R.id.btn_crowds)
 
-        // Cliques nos botões
-        btnRollerCoaster.setOnClickListener {
-            startARExposure("Roller Coaster", ExposureType.ROLLER_COASTER)
-        }
+            // Cliques nos botões
+            btnRollerCoaster.setOnClickListener {
+                startARExposure("Roller Coaster", ExposureType.ROLLER_COASTER)
+            }
 
-        btnHeights.setOnClickListener {
-            startARExposure("Alturas", ExposureType.HEIGHTS)
-        }
+            btnHeights.setOnClickListener {
+                startARExposure("Alturas", ExposureType.HEIGHTS)
+            }
 
-        btnClosedSpaces.setOnClickListener {
-            startARExposure("Espaços Fechados", ExposureType.CLOSED_SPACES)
-        }
+            btnClosedSpaces.setOnClickListener {
+                startARExposure("Espaços Fechados", ExposureType.CLOSED_SPACES)
+            }
 
-        btnCrowds.setOnClickListener {
-            startARExposure("Multidões", ExposureType.CROWDS)
+            btnCrowds.setOnClickListener {
+                startARExposure("Multidões", ExposureType.CROWDS)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 

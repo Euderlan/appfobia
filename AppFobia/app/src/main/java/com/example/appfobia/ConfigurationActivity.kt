@@ -15,35 +15,40 @@ class ConfigurationActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_configuration)
 
-        val exposureTitle = intent.getStringExtra("exposure_title") ?: "Exposição"
-        val exposureType = intent.getStringExtra("exposure_type") ?: ""
+        try {
+            val exposureTitle = intent.getStringExtra("exposure_title") ?: "Exposição"
+            val exposureType = intent.getStringExtra("exposure_type") ?: ""
 
-        val tvTitle = findViewById<MaterialTextView>(R.id.tv_config_title)
-        val sliderIntensity = findViewById<Slider>(R.id.slider_intensity)
-        val tvIntensityValue = findViewById<MaterialTextView>(R.id.tv_intensity_value)
-        val btnStart = findViewById<MaterialButton>(R.id.btn_start_ar)
-        val btnBack = findViewById<MaterialButton>(R.id.btn_back)
+            val tvTitle = findViewById<MaterialTextView>(R.id.tv_config_title)
+            val sliderIntensity = findViewById<Slider>(R.id.slider_intensity)
+            val tvIntensityValue = findViewById<MaterialTextView>(R.id.tv_intensity_value)
+            val btnStart = findViewById<MaterialButton>(R.id.btn_start_ar)
+            val btnBack = findViewById<MaterialButton>(R.id.btn_back)
 
-        tvTitle.text = "Configurar: $exposureTitle"
+            tvTitle.text = "Configurar: $exposureTitle"
 
-        // Slider de intensidade (1-10)
-        sliderIntensity.apply {
-            valueFrom = 1f
-            valueTo = 10f
-            value = currentIntensity
-            stepSize = 1f
+            // Slider de intensidade (1-10)
+            sliderIntensity.apply {
+                valueFrom = 1f
+                valueTo = 10f
+                value = currentIntensity
+                stepSize = 1f
 
-            addOnChangeListener { _, value, _ ->
-                currentIntensity = value
-                tvIntensityValue.text = "Intensidade: ${value.toInt()}/10"
+                addOnChangeListener { _, value, _ ->
+                    currentIntensity = value
+                    tvIntensityValue.text = "Intensidade: ${value.toInt()}/10"
+                }
             }
-        }
 
-        btnStart.setOnClickListener {
-            startARSession(exposureType, currentIntensity.toInt())
-        }
+            btnStart.setOnClickListener {
+                startARSession(exposureType, currentIntensity.toInt())
+            }
 
-        btnBack.setOnClickListener {
+            btnBack.setOnClickListener {
+                finish()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
             finish()
         }
     }
