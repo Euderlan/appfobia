@@ -2,10 +2,13 @@ package com.example.appfobia
 
 import android.content.Intent
 import android.os.Bundle
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.slider.Slider
 import com.google.android.material.textview.MaterialTextView
+import com.example.appfobia.ui.ARActivity
+import com.example.appfobia.ui.VRActivity
 
 class ConfigurationActivity : AppCompatActivity() {
 
@@ -40,8 +43,9 @@ class ConfigurationActivity : AppCompatActivity() {
                 }
             }
 
+            // Botão Start - Agora abre dialog para escolher modo
             btnStart.setOnClickListener {
-                startARSession(exposureType, currentIntensity.toInt())
+                showModeSelectionDialog(exposureType, currentIntensity.toInt())
             }
 
             btnBack.setOnClickListener {
@@ -53,8 +57,49 @@ class ConfigurationActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Dialog para escolher entre AR (sem óculos) e VR (com Cardboard)
+     */
+    private fun showModeSelectionDialog(exposureType: String, intensity: Int) {
+        val modes = arrayOf(
+            "📱 AR (Smartphone - Sem Óculos)",
+            "🥽 VR (Cardboard - Com Óculos VR)"
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle("Escolha o Modo de Terapia")
+            .setMessage("Qual tipo de experiência você prefere?")
+            .setItems(modes) { _, which ->
+                when (which) {
+                    0 -> startARSession(exposureType, intensity)      // AR Mode
+                    1 -> startVRSession(exposureType, intensity)      // VR Mode
+                }
+            }
+            .setNegativeButton("Cancelar") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    /**
+     * Inicia sessão em modo AR (sem óculos)
+     * Funciona em qualquer smartphone
+     */
     private fun startARSession(exposureType: String, intensity: Int) {
         val intent = Intent(this, ARActivity::class.java).apply {
+            putExtra("exposure_type", exposureType)
+            putExtra("intensity", intensity)
+        }
+        startActivity(intent)
+    }
+
+    /**
+     * Inicia sessão em modo VR (com Cardboard)
+     * Requer óculos VR Cardboard
+     * Suporta rastreamento de cabeça (head tracking)
+     */
+    private fun startVRSession(exposureType: String, intensity: Int) {
+        val intent = Intent(this, VRActivity::class.java).apply {
             putExtra("exposure_type", exposureType)
             putExtra("intensity", intensity)
         }

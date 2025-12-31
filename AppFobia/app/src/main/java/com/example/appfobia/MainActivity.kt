@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
+import com.example.appfobia.ExposureType
 
 class MainActivity : AppCompatActivity() {
 
@@ -46,11 +47,4 @@ class MainActivity : AppCompatActivity() {
         }
         startActivity(intent)
     }
-}
-
-enum class ExposureType {
-    ROLLER_COASTER,
-    HEIGHTS,
-    CLOSED_SPACES,
-    CROWDS
 }
