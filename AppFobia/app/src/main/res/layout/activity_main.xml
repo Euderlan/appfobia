@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@android:color/white">
+
+    <!-- Header -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Terapia de Exposição"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/black"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Selecione o tipo de exposição"
+        android:textSize="14sp"
+        android:textColor="@android:color/darker_gray"
+        android:layout_marginBottom="32dp" />
+
+    <!-- ScrollView para múltiplos botões -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:spacing="16dp">
+
+            <!-- Botão Roller Coaster -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:layout_marginBottom="16dp"
+                app:cardElevation="4dp"
+                app:cardCornerRadius="12dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_roller_coaster"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:text="🎢 Roller Coaster"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:backgroundTint="@android:color/transparent"
+                    android:textColor="@android:color/black" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Botão Alturas -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:layout_marginBottom="16dp"
+                app:cardElevation="4dp"
+                app:cardCornerRadius="12dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_heights"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:text="⛰️ Alturas"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:backgroundTint="@android:color/transparent"
+                    android:textColor="@android:color/black" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Botão Espaços Fechados -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:layout_marginBottom="16dp"
+                app:cardElevation="4dp"
+                app:cardCornerRadius="12dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_closed_spaces"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:text="🚪 Espaços Fechados"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:backgroundTint="@android:color/transparent"
+                    android:textColor="@android:color/black" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Botão Multidões -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                app:cardElevation="4dp"
+                app:cardCornerRadius="12dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_crowds"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:text="👥 Multidões"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:backgroundTint="@android:color/transparent"
+                    android:textColor="@android:color/black" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+</LinearLayout>
