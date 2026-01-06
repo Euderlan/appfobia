@@ -6,8 +6,8 @@ import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.util.Log
 import android.widget.FrameLayout
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
@@ -17,7 +17,10 @@ import com.example.appfobia.ExposureType
 import com.example.appfobia.R
 import com.example.appfobia.ar.ARCoreRenderer
 import com.example.appfobia.ar.ARCoreSessionManager
+import com.example.appfobia.ar.CameraProvider
+import com.example.appfobia.ar.ModelManager
 import com.example.appfobia.ar.SceneManager
+import com.google.ar.core.Pose
 
 class ARActivity : AppCompatActivity() {
 
@@ -31,6 +34,11 @@ class ARActivity : AppCompatActivity() {
     private lateinit var renderer: ARCoreRenderer
     private lateinit var arCoreManager: ARCoreSessionManager
     private lateinit var sceneManager: SceneManager
+    private lateinit var cameraProvider: CameraProvider
+    private lateinit var modelManager: ModelManager
+    private lateinit var previewView: PreviewView
+
+    private var modelAnchor: com.google.ar.core.Anchor? = null
 
     private val CAMERA_PERMISSION_CODE = 100
 
@@ -61,20 +69,25 @@ class ARActivity : AppCompatActivity() {
             val btnEnd = findViewById<MaterialButton>(R.id.btn_end_session)
             val arContainer = findViewById<FrameLayout>(R.id.ar_container)
 
-            tvStatus.text = "Inicializando ARCore..."
-            tvIntensity.text = "Intensidade: $intensity/10"
+            tvStatus.setText("Inicializando ARCore...")
+            tvIntensity.setText("Intensidade: $intensity/10")
 
+            // Inicializar componentes
             arCoreManager = ARCoreSessionManager(this)
             sceneManager = SceneManager(this)
+            cameraProvider = CameraProvider(this, this)
+            modelManager = ModelManager(this)
 
-            glSurfaceView = GLSurfaceView(this)
-            renderer = ARCoreRenderer()
-            glSurfaceView.setRenderer(renderer)
-            glSurfaceView.renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
-            arContainer.addView(glSurfaceView, 0)
+            // Criar PreviewView para captura da câmera (primeiro plano - mais importante)
+            previewView = PreviewView(this)
+            val previewParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            arContainer.addView(previewView, 0, previewParams)
 
-            Log.d(TAG, "GLSurfaceView adicionada")
-
+            Log.d(TAG, "PreviewView adicionada (câmera ao vivo)")
+            /*
             try {
                 val exposureEnum = ExposureType.valueOf(exposureType)
                 renderer.setExposureType(exposureEnum.name)
@@ -82,7 +95,7 @@ class ARActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e(TAG, "Erro ao definir tipo de exposicao", e)
             }
-
+            */
             if (ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.CAMERA
@@ -102,10 +115,10 @@ class ARActivity : AppCompatActivity() {
                 isRunning = !isRunning
                 if (isRunning) {
                     startTimer(tvTimer)
-                    tvStatus.text = "Ativo - ${getExposureTypeName()}"
+                    tvStatus.setText("Ativo - ${getExposureTypeName()}")
                 } else {
                     stopTimer()
-                    tvStatus.text = "Pausado"
+                    tvStatus.setText("Pausado")
                 }
                 btnPlay.setImageResource(
                     if (isRunning) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
@@ -115,7 +128,7 @@ class ARActivity : AppCompatActivity() {
             btnIncrease.setOnClickListener {
                 if (intensity < 10) {
                     intensity++
-                    tvIntensity.text = "Intensidade: $intensity/10"
+                    tvIntensity.setText("Intensidade: $intensity/10")
                     renderer.setIntensity(intensity)
                 }
             }
@@ -123,7 +136,7 @@ class ARActivity : AppCompatActivity() {
             btnDecrease.setOnClickListener {
                 if (intensity > 1) {
                     intensity--
-                    tvIntensity.text = "Intensidade: $intensity/10"
+                    tvIntensity.setText("Intensidade: $intensity/10")
                     renderer.setIntensity(intensity)
                 }
             }
@@ -135,7 +148,7 @@ class ARActivity : AppCompatActivity() {
 
             try {
                 val exposureTypeEnum = ExposureType.valueOf(exposureType)
-                tvStatus.text = "ARCore - ${sceneManager.getSceneDescription(exposureTypeEnum).take(40)}"
+                tvStatus.setText("AR Ativo - ${sceneManager.getSceneDescription(exposureTypeEnum).take(40)}")
             } catch (e: Exception) {
                 Log.e(TAG, "Erro ao carregar descricao", e)
             }
@@ -155,17 +168,84 @@ class ARActivity : AppCompatActivity() {
         if (arCoreManager.checkARCoreSupport()) {
             if (arCoreManager.initializeSession()) {
                 arCoreManager.getSession()?.let { session ->
-                    renderer.setARSession(session)
-                    tvStatus.text = "ARCore Ativo - ${getExposureTypeName()}"
                     Log.d(TAG, "ARCore inicializado com sucesso")
+
+                    // Pré-carregar modelos
+                    modelManager.preloadAllModels { success ->
+                        if (success) {
+                            Log.d(TAG, "Todos os modelos pré-carregados!")
+                            // Carregar o modelo do tipo de exposição atual
+                            loadExposureModel(tvStatus)
+                        } else {
+                            Log.w(TAG, "Alguns modelos falharam ao carregar")
+                            loadExposureModel(tvStatus)
+                        }
+                    }
+
+                    // Iniciar câmera
+                    startCameraCapture()
                 }
             } else {
-                tvStatus.text = "Erro ao inicializar ARCore"
+                tvStatus.setText("Erro ao inicializar ARCore")
                 Log.e(TAG, "Falha ao inicializar sessao ARCore")
             }
         } else {
-            tvStatus.text = "ARCore nao suportado - Modo Simulacao"
+            tvStatus.setText("ARCore nao suportado - Modo Simulacao")
             Log.w(TAG, "Dispositivo nao suporta ARCore")
+        }
+    }
+
+    private fun loadExposureModel(tvStatus: MaterialTextView) {
+        try {
+            val exposureEnum = ExposureType.valueOf(exposureType)
+            arCoreManager.getSession()?.let { session ->
+
+                // Criar um anchor para posicionar o modelo
+                // Posiciona na frente do usuário (distância -1.5f metros)
+                val pose = Pose.makeTranslation(0f, 0f, -1.5f)
+                val anchor = session.createAnchor(pose)
+
+                if (anchor != null) {
+                    modelAnchor = anchor
+
+                    // Carregar com escala otimizada
+                    val scale = when (exposureEnum) {
+                        ExposureType.CLOSED_SPACES -> 1.2f  // Elevador um pouco maior
+                        ExposureType.HEIGHTS -> 1.5f        // Plataforma bem visível
+                        ExposureType.ROLLER_COASTER -> 1.0f // Tamanho normal
+                        ExposureType.CROWDS -> 1.3f         // Multidão bem visível
+                    }
+
+                    modelManager.loadModelForExposure(
+                        exposureType = exposureEnum,
+                        anchor = anchor,
+                        scale = scale,
+                        onSuccess = { anchorNode ->
+                            Log.d(TAG, " Modelo renderizado! Você pode agora colocar na frente dos olhos")
+                            tvStatus.setText(" Modelo: ${getExposureTypeName()}")
+                        },
+                        onError = { error ->
+                            Log.e(TAG, " Erro ao carregar modelo", error)
+                            tvStatus.setText(" Erro ao carregar: ${error.message}")
+                        }
+                    )
+                } else {
+                    Log.e(TAG, "Falha ao criar anchor para modelo")
+                    tvStatus.setText("Erro: Não foi possível criar anchor")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao carregar modelo de exposição", e)
+            tvStatus.setText("Erro: ${e.message}")
+        }
+    }
+
+    private fun startCameraCapture() {
+        try {
+            cameraProvider.startCamera(previewView.surfaceProvider)
+            Log.d(TAG, " Câmera iniciada com sucesso")
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao iniciar câmera", e)
         }
     }
 
@@ -190,7 +270,7 @@ class ARActivity : AppCompatActivity() {
                     val minutes = elapsedSeconds / 60
                     val seconds = elapsedSeconds % 60
                     runOnUiThread {
-                        tvTimer.text = String.format("Tempo: %02d:%02d", minutes, seconds)
+                        tvTimer.setText(String.format("Tempo: %02d:%02d", minutes, seconds))
                     }
                 } catch (e: InterruptedException) {
                     Thread.currentThread().interrupt()
@@ -210,6 +290,9 @@ class ARActivity : AppCompatActivity() {
         stopTimer()
         arCoreManager.pauseSession()
         arCoreManager.closeSession()
+        cameraProvider.stopCamera()
+        cameraProvider.shutdown()
+        modelManager.clearCache()
         finish()
     }
 
@@ -232,14 +315,14 @@ class ARActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         Log.d(TAG, "onResume")
-        glSurfaceView.onResume()
         arCoreManager.resumeSession()
+        startCameraCapture()
     }
 
     override fun onPause() {
         Log.d(TAG, "onPause")
-        glSurfaceView.onPause()
         arCoreManager.pauseSession()
+        cameraProvider.stopCamera()
         super.onPause()
     }
 
@@ -247,6 +330,9 @@ class ARActivity : AppCompatActivity() {
         Log.d(TAG, "onDestroy")
         stopTimer()
         arCoreManager.closeSession()
+        cameraProvider.stopCamera()
+        cameraProvider.shutdown()
+        modelManager.clearCache()
         super.onDestroy()
     }
 }
