@@ -5,21 +5,18 @@
     android:layout_height="match_parent"
     android:background="@android:color/black">
 
-    <!-- Visualização da Câmera RA (será substituída por ARCore View) -->
     <FrameLayout
         android:id="@+id/ar_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@android:color/darker_gray" />
 
-    <!-- Overlay de Controles -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Top Bar - Status -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -55,14 +52,11 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Spacer -->
         <View
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <!-- Bottom Controls -->
-        <!-- Intensidade -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -110,14 +104,12 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Botões de Ação -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:spacing="12dp">
 
-            <!-- Play/Pause FAB -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fab_play_pause"
                 android:layout_width="56dp"
@@ -126,7 +118,6 @@
                 android:contentDescription="Play/Pause"
                 android:layout_marginEnd="8dp" />
 
-            <!-- End Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_end_session"
                 android:layout_width="0dp"
