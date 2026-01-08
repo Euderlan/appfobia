@@ -1,4 +1,4 @@
-package com.example.appfobia.ar
+/*package com.example.appfobia.ar
 
 import android.content.Context
 import android.net.Uri
@@ -17,16 +17,13 @@ class ModelManager(private val context: Context) {
 
     private val modelMap = mapOf(
         ExposureType.CLOSED_SPACES to "models/closed_room.glb",
-        ExposureType.ROLLER_COASTER to "models/closed_room.glb",
-        ExposureType.HEIGHTS to "models/closed_room.glb",
-        ExposureType.CROWDS to "models/closed_room.glb"
+        ExposureType.ROLLER_COASTER to "models/roller_coaster.glb",
+        ExposureType.HEIGHTS to "models/roller_coaster.glb",
+        ExposureType.CROWDS to "models/roller_coaster.glb"
     )
 
     private val loadedModels = mutableMapOf<String, ModelRenderable>()
 
-    /**
-     * Pré-carrega um modelo 3D para uso rápido depois
-     */
     fun preloadModel(modelPath: String, callback: (Boolean) -> Unit) {
         if (loadedModels.containsKey(modelPath)) {
             callback(true)
@@ -39,36 +36,35 @@ class ModelManager(private val context: Context) {
             .thenAccept { renderable ->
                 loadedModels[modelPath] = renderable
                 callback(true)
-                Log.d(TAG, "Modelo pré-carregado: $modelPath")
+                Log.d(TAG, "Modelo pre-carregado: $modelPath")
             }
             .exceptionally { exception ->
-                Log.e(TAG, "Erro ao pré-carregar modelo: $modelPath", exception)
+                Log.e(TAG, "Erro ao pre-carregar modelo: $modelPath", exception)
                 callback(false)
                 null
             }
     }
 
-    /**
-     * Pré-carrega todos os modelos de exposição
-     */
     fun preloadAllModels(callback: (Boolean) -> Unit) {
-        val paths = modelMap.values.toList()
+        val paths = modelMap.values.distinct()
         var loadedCount = 0
+
+        if (paths.isEmpty()) {
+            callback(true)
+            return
+        }
 
         paths.forEach { path ->
             preloadModel(path) { success ->
                 if (success) loadedCount++
                 if (loadedCount == paths.size) {
                     callback(true)
-                    Log.d(TAG, "Todos os modelos pré-carregados!")
+                    Log.d(TAG, "Todos os modelos pre-carregados!")
                 }
             }
         }
     }
 
-    /**
-     * Carrega o modelo correspondente ao tipo de exposição
-     */
     fun loadModelForExposure(
         exposureType: ExposureType,
         anchor: Anchor,
@@ -79,7 +75,7 @@ class ModelManager(private val context: Context) {
         val modelPath = modelMap[exposureType]
 
         if (modelPath == null) {
-            onError(Exception("Modelo não encontrado para: $exposureType"))
+            onError(Exception("Modelo nao encontrado para: $exposureType"))
             return
         }
 
@@ -92,9 +88,6 @@ class ModelManager(private val context: Context) {
         )
     }
 
-    /**
-     * Carrega qualquer modelo 3D manualmente
-     */
     fun loadModel(
         modelPath: String,
         anchor: Anchor,
@@ -105,12 +98,10 @@ class ModelManager(private val context: Context) {
         val renderable = loadedModels[modelPath]
 
         if (renderable != null) {
-            // Modelo já está pré-carregado
             val anchorNode = createAnchorNode(anchor, renderable, scale)
             onSuccess(anchorNode)
             Log.d(TAG, "Modelo carregado (cache): $modelPath")
         } else {
-            // Carregar modelo pela primeira vez
             ModelRenderable.builder()
                 .setSource(context, Uri.parse("file:///android_asset/$modelPath"))
                 .build()
@@ -128,9 +119,6 @@ class ModelManager(private val context: Context) {
         }
     }
 
-    /**
-     * Cria um AnchorNode com o modelo renderizado
-     */
     private fun createAnchorNode(
         anchor: Anchor,
         renderable: ModelRenderable,
@@ -142,26 +130,17 @@ class ModelManager(private val context: Context) {
         }
     }
 
-    /**
-     * Limpa o cache de modelos carregados
-     */
     fun clearCache() {
         loadedModels.clear()
         Log.d(TAG, "Cache de modelos limpo")
     }
 
-    /**
-     * Remove um modelo específico do cache
-     */
     fun removeFromCache(modelPath: String) {
         loadedModels.remove(modelPath)
         Log.d(TAG, "Modelo removido do cache: $modelPath")
     }
 
-    /**
-     * Retorna o caminho do modelo para um tipo de exposição
-     */
     fun getModelPath(exposureType: ExposureType): String? {
         return modelMap[exposureType]
     }
-}
+}*/

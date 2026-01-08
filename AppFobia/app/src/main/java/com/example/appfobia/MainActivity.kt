@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
+import com.example.appfobia.ui.ARActivity
 import com.google.android.material.button.MaterialButton
 
 class MainActivity : AppCompatActivity() {
@@ -59,13 +60,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun startARExposure(title: String, type: ExposureType) {
         try {
-            val intent = Intent(this, ConfigurationActivity::class.java).apply {
-                putExtra("exposure_title", title)
+            val intent = Intent(this, ARActivity::class.java).apply {
                 putExtra("exposure_type", type.name)
+                putExtra("intensity", 5)
             }
             startActivity(intent)
         } catch (e: Exception) {
-            Log.e(TAG, "Erro ao iniciar ConfigurationActivity", e)
+            Log.e(TAG, "Erro ao iniciar ARActivity", e)
             e.printStackTrace()
         }
     }
