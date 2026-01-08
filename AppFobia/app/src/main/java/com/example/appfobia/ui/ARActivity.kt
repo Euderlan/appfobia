@@ -2,25 +2,21 @@ package com.example.appfobia.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.util.Log
-import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.appfobia.ExposureType
+import com.example.appfobia.R
+import com.example.appfobia.ar.ModelManager
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.textview.MaterialTextView
-import com.example.appfobia.ExposureType
-import com.example.appfobia.R
-import com.example.appfobia.ar.ARCoreRenderer
-import com.example.appfobia.ar.ARCoreSessionManager
-import com.example.appfobia.ar.CameraProvider
-import com.example.appfobia.ar.ModelManager
-import com.example.appfobia.ar.SceneManager
 import com.google.ar.core.Pose
+import com.google.ar.sceneform.AnchorNode
+import com.google.ar.sceneform.ux.ArFragment
+import com.google.ar.sceneform.ux.TransformableNode
 
 class ARActivity : AppCompatActivity() {
 
@@ -30,17 +26,13 @@ class ARActivity : AppCompatActivity() {
     private var elapsedSeconds = 0
     private var sessionTimer: Thread? = null
 
-    private lateinit var glSurfaceView: GLSurfaceView
-    private lateinit var renderer: ARCoreRenderer
-    private lateinit var arCoreManager: ARCoreSessionManager
-    private lateinit var sceneManager: SceneManager
-    private lateinit var cameraProvider: CameraProvider
-    private lateinit var modelManager: ModelManager
-    private lateinit var previewView: PreviewView
-
-    private var modelAnchor: com.google.ar.core.Anchor? = null
-
     private val CAMERA_PERMISSION_CODE = 100
+
+    private lateinit var arFragment: ArFragment
+    private lateinit var modelManager: ModelManager
+
+    private var placedNode: TransformableNode? = null
+    private var placedAnchorNode: AnchorNode? = null
 
     companion object {
         private const val TAG = "ARActivity"
@@ -50,212 +42,178 @@ class ARActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         Log.d(TAG, "onCreate ARActivity iniciado")
+        setContentView(R.layout.activity_ar)
 
-        try {
-            setContentView(R.layout.activity_ar)
-            Log.d(TAG, "Layout carregado")
+        // Fragmento AR (precisa existir no activity_ar.xml como R.id.ux_fragment)
+        arFragment = supportFragmentManager.findFragmentById(R.id.ux_fragment) as ArFragment
 
-            intensity = intent.getIntExtra("intensity", 5)
-            exposureType = intent.getStringExtra("exposure_type") ?: "ROLLER_COASTER"
+        intensity = intent.getIntExtra("intensity", 5)
+        exposureType = intent.getStringExtra("exposure_type") ?: "ROLLER_COASTER"
 
-            Log.d(TAG, "Parametros: exposure=$exposureType, intensity=$intensity")
+        val tvStatus = findViewById<MaterialTextView>(R.id.tv_ar_status)
+        val tvIntensity = findViewById<MaterialTextView>(R.id.tv_current_intensity)
+        val tvTimer = findViewById<MaterialTextView>(R.id.tv_timer)
 
-            val tvStatus = findViewById<MaterialTextView>(R.id.tv_ar_status)
-            val tvIntensity = findViewById<MaterialTextView>(R.id.tv_current_intensity)
-            val tvTimer = findViewById<MaterialTextView>(R.id.tv_timer)
-            val btnPlay = findViewById<FloatingActionButton>(R.id.fab_play_pause)
-            val btnIncrease = findViewById<MaterialButton>(R.id.btn_increase_intensity)
-            val btnDecrease = findViewById<MaterialButton>(R.id.btn_decrease_intensity)
-            val btnEnd = findViewById<MaterialButton>(R.id.btn_end_session)
-            val arContainer = findViewById<FrameLayout>(R.id.ar_container)
+        val btnPlay = findViewById<FloatingActionButton>(R.id.fab_play_pause)
+        val btnIncrease = findViewById<MaterialButton>(R.id.btn_increase_intensity)
+        val btnDecrease = findViewById<MaterialButton>(R.id.btn_decrease_intensity)
+        val btnEnd = findViewById<MaterialButton>(R.id.btn_end_session)
 
-            tvStatus.setText("Inicializando ARCore...")
-            tvIntensity.setText("Intensidade: $intensity/10")
+        tvStatus.text = "Inicializando AR..."
+        tvIntensity.text = "Intensidade: $intensity/10"
 
-            // Inicializar componentes
-            arCoreManager = ARCoreSessionManager(this)
-            sceneManager = SceneManager(this)
-            cameraProvider = CameraProvider(this, this)
-            modelManager = ModelManager(this)
+        modelManager = ModelManager(this)
 
-            // Criar PreviewView para captura da câmera (primeiro plano - mais importante)
-            previewView = PreviewView(this)
-            val previewParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
+        // Permissão de câmera
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.CAMERA),
+                CAMERA_PERMISSION_CODE
             )
-            arContainer.addView(previewView, 0, previewParams)
-
-            Log.d(TAG, "PreviewView adicionada (câmera ao vivo)")
-            /*
-            try {
-                val exposureEnum = ExposureType.valueOf(exposureType)
-                renderer.setExposureType(exposureEnum.name)
-                renderer.setIntensity(intensity)
-            } catch (e: Exception) {
-                Log.e(TAG, "Erro ao definir tipo de exposicao", e)
-            }
-            */
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.CAMERA
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                Log.d(TAG, "Pedindo permissao de camera")
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(Manifest.permission.CAMERA),
-                    CAMERA_PERMISSION_CODE
-                )
-            } else {
-                initializeARCore(tvStatus)
-            }
-
-            btnPlay.setOnClickListener {
-                isRunning = !isRunning
-                if (isRunning) {
-                    startTimer(tvTimer)
-                    tvStatus.setText("Ativo - ${getExposureTypeName()}")
-                } else {
-                    stopTimer()
-                    tvStatus.setText("Pausado")
-                }
-                btnPlay.setImageResource(
-                    if (isRunning) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
-                )
-            }
-
-            btnIncrease.setOnClickListener {
-                if (intensity < 10) {
-                    intensity++
-                    tvIntensity.setText("Intensidade: $intensity/10")
-                    renderer.setIntensity(intensity)
-                }
-            }
-
-            btnDecrease.setOnClickListener {
-                if (intensity > 1) {
-                    intensity--
-                    tvIntensity.setText("Intensidade: $intensity/10")
-                    renderer.setIntensity(intensity)
-                }
-            }
-
-            btnEnd.setOnClickListener {
-                stopTimer()
-                finishSession()
-            }
-
-            try {
-                val exposureTypeEnum = ExposureType.valueOf(exposureType)
-                tvStatus.setText("AR Ativo - ${sceneManager.getSceneDescription(exposureTypeEnum).take(40)}")
-            } catch (e: Exception) {
-                Log.e(TAG, "Erro ao carregar descricao", e)
-            }
-
-            Log.d(TAG, "ARActivity inicializada com sucesso")
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Erro fatal no onCreate", e)
-            e.printStackTrace()
-            finish()
-        }
-    }
-
-    private fun initializeARCore(tvStatus: MaterialTextView) {
-        Log.d(TAG, "Inicializando ARCore")
-
-        if (arCoreManager.checkARCoreSupport()) {
-            if (arCoreManager.initializeSession()) {
-                arCoreManager.getSession()?.let { session ->
-                    Log.d(TAG, "ARCore inicializado com sucesso")
-
-                    // Pré-carregar modelos
-                    modelManager.preloadAllModels { success ->
-                        if (success) {
-                            Log.d(TAG, "Todos os modelos pré-carregados!")
-                            // Carregar o modelo do tipo de exposição atual
-                            loadExposureModel(tvStatus)
-                        } else {
-                            Log.w(TAG, "Alguns modelos falharam ao carregar")
-                            loadExposureModel(tvStatus)
-                        }
-                    }
-
-                    // Iniciar câmera
-                    startCameraCapture()
-                }
-            } else {
-                tvStatus.setText("Erro ao inicializar ARCore")
-                Log.e(TAG, "Falha ao inicializar sessao ARCore")
-            }
         } else {
-            tvStatus.setText("ARCore nao suportado - Modo Simulacao")
-            Log.w(TAG, "Dispositivo nao suporta ARCore")
+            initializeAR(tvStatus)
+        }
+
+        btnPlay.setOnClickListener {
+            isRunning = !isRunning
+            if (isRunning) {
+                startTimer(tvTimer)
+                tvStatus.text = "Ativo - ${getExposureTypeName()}"
+            } else {
+                stopTimer()
+                tvStatus.text = "Pausado"
+            }
+            btnPlay.setImageResource(
+                if (isRunning) android.R.drawable.ic_media_pause
+                else android.R.drawable.ic_media_play
+            )
+        }
+
+        btnIncrease.setOnClickListener {
+            if (intensity < 10) {
+                intensity++
+                tvIntensity.text = "Intensidade: $intensity/10"
+                // Se você quiser, dá para usar intensidade para alterar algo no app (efeitos, UI, etc.)
+            }
+        }
+
+        btnDecrease.setOnClickListener {
+            if (intensity > 1) {
+                intensity--
+                tvIntensity.text = "Intensidade: $intensity/10"
+            }
+        }
+
+        btnEnd.setOnClickListener {
+            stopTimer()
+            finishSession()
         }
     }
 
-    private fun loadExposureModel(tvStatus: MaterialTextView) {
-        try {
-            val exposureEnum = ExposureType.valueOf(exposureType)
-            arCoreManager.getSession()?.let { session ->
+    private fun initializeAR(tvStatus: MaterialTextView) {
+        Log.d(TAG, "initializeAR")
 
-                // Criar um anchor para posicionar o modelo
-                // Posiciona na frente do usuário (distância -1.5f metros)
-                val pose = Pose.makeTranslation(0f, 0f, -1.5f)
-                val anchor = session.createAnchor(pose)
+        // Pré-carrega modelos (opcional, mas bom)
+        modelManager.preloadAllModels { success ->
+            if (success) Log.d(TAG, "Modelos pré-carregados com sucesso")
+            else Log.w(TAG, "Alguns modelos falharam no preload (vai tentar carregar mesmo assim)")
 
-                if (anchor != null) {
-                    modelAnchor = anchor
+            // Coloca o modelo automaticamente na frente da câmera
+            placeModelInFrontOfCamera(tvStatus)
+        }
+    }
 
-                    // Carregar com escala otimizada
-                    val scale = when (exposureEnum) {
-                        ExposureType.CLOSED_SPACES -> 1.2f  // Elevador um pouco maior
-                        ExposureType.HEIGHTS -> 1.5f        // Plataforma bem visível
-                        ExposureType.ROLLER_COASTER -> 1.0f // Tamanho normal
-                        ExposureType.CROWDS -> 1.3f         // Multidão bem visível
-                    }
+    /**
+     * Cria um anchor ~1m à frente da câmera e adiciona o modelo na Scene do Sceneform.
+     * Isso é o que faz o .glb/.gltf aparecer para o usuário.
+     */
+    private fun placeModelInFrontOfCamera(tvStatus: MaterialTextView) {
+        val exposureEnum = runCatching { ExposureType.valueOf(exposureType) }
+            .getOrElse {
+                tvStatus.text = "Tipo de exposição inválido: $exposureType"
+                return
+            }
 
-                    modelManager.loadModelForExposure(
-                        exposureType = exposureEnum,
-                        anchor = anchor,
-                        scale = scale,
-                        onSuccess = { anchorNode ->
-                            Log.d(TAG, " Modelo renderizado! Você pode agora colocar na frente dos olhos")
-                            tvStatus.setText(" Modelo: ${getExposureTypeName()}")
-                        },
-                        onError = { error ->
-                            Log.e(TAG, " Erro ao carregar modelo", error)
-                            tvStatus.setText(" Erro ao carregar: ${error.message}")
-                        }
-                    )
-                } else {
-                    Log.e(TAG, "Falha ao criar anchor para modelo")
-                    tvStatus.setText("Erro: Não foi possível criar anchor")
+        val session = arFragment.arSceneView.session
+        val frame = arFragment.arSceneView.arFrame
+
+        if (session == null || frame == null) {
+            tvStatus.text = "Aguardando câmera/AR iniciar..."
+            Log.w(TAG, "Session ou Frame nulos (ainda não pronto)")
+            // Tenta de novo no próximo frame
+            arFragment.arSceneView.scene.addOnUpdateListener {
+                if (arFragment.arSceneView.session != null && arFragment.arSceneView.arFrame != null) {
+                    arFragment.arSceneView.scene.removeOnUpdateListener { }
+                    placeModelInFrontOfCamera(tvStatus)
                 }
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Erro ao carregar modelo de exposição", e)
-            tvStatus.setText("Erro: ${e.message}")
+            return
         }
-    }
 
-    private fun startCameraCapture() {
-        try {
-            cameraProvider.startCamera(previewView.surfaceProvider)
-            Log.d(TAG, " Câmera iniciada com sucesso")
-        } catch (e: Exception) {
-            Log.e(TAG, "Erro ao iniciar câmera", e)
+        // Remove modelo anterior se existir
+        placedNode?.setParent(null)
+        placedNode = null
+        placedAnchorNode?.let { old ->
+            try {
+                old.anchor?.detach()
+            } catch (_: Exception) {}
+            old.setParent(null)
         }
+        placedAnchorNode = null
+
+        // Anchor 1 metro à frente da câmera
+        val cameraPose = frame.camera.pose
+        val forwardPose: Pose = cameraPose.compose(Pose.makeTranslation(0f, 0f, -1.0f))
+        val anchor = session.createAnchor(forwardPose)
+
+        // Escala por tipo
+        val scale = when (exposureEnum) {
+            ExposureType.CLOSED_SPACES -> 1.2f
+            ExposureType.HEIGHTS -> 1.5f
+            ExposureType.ROLLER_COASTER -> 1.0f
+            ExposureType.CROWDS -> 1.3f
+        }
+
+        tvStatus.text = "Carregando modelo: ${getExposureTypeName()}..."
+
+        modelManager.loadModelForExposure(
+            exposureType = exposureEnum,
+            anchor = anchor,
+            scale = scale,
+            onSuccess = { anchorNode ->
+                Log.d(TAG, "Modelo carregado! Adicionando na cena...")
+
+                // ESSENCIAL: adicionar o AnchorNode na cena
+                arFragment.arSceneView.scene.addChild(anchorNode)
+
+                // Torna o modelo "mexível" para o usuário (pinch/rotate)
+                val node = TransformableNode(arFragment.transformationSystem).apply {
+                    setParent(anchorNode)
+                    select()
+                }
+
+                placedAnchorNode = anchorNode
+                placedNode = node
+
+                tvStatus.text = "Modelo: ${getExposureTypeName()} (pronto)"
+            },
+            onError = { error ->
+                Log.e(TAG, "Erro ao carregar modelo", error)
+                tvStatus.text = "Erro ao carregar: ${error.message}"
+            }
+        )
     }
 
     private fun getExposureTypeName(): String {
         return when (exposureType) {
             "ROLLER_COASTER" -> "Roller Coaster"
             "HEIGHTS" -> "Alturas"
-            "CLOSED_SPACES" -> "Espacos Fechados"
-            "CROWDS" -> "Multidoes"
-            else -> "Exposicao Padrao"
+            "CLOSED_SPACES" -> "Espaços Fechados"
+            "CROWDS" -> "Multidões"
+            else -> "Exposição Padrão"
         }
     }
 
@@ -270,7 +228,7 @@ class ARActivity : AppCompatActivity() {
                     val minutes = elapsedSeconds / 60
                     val seconds = elapsedSeconds % 60
                     runOnUiThread {
-                        tvTimer.setText(String.format("Tempo: %02d:%02d", minutes, seconds))
+                        tvTimer.text = String.format("Tempo: %02d:%02d", minutes, seconds)
                     }
                 } catch (e: InterruptedException) {
                     Thread.currentThread().interrupt()
@@ -288,10 +246,19 @@ class ARActivity : AppCompatActivity() {
 
     private fun finishSession() {
         stopTimer()
-        arCoreManager.pauseSession()
-        arCoreManager.closeSession()
-        cameraProvider.stopCamera()
-        cameraProvider.shutdown()
+
+        // Limpa nós/anchors
+        placedNode?.setParent(null)
+        placedNode = null
+
+        placedAnchorNode?.let { node ->
+            try {
+                node.anchor?.detach()
+            } catch (_: Exception) {}
+            node.setParent(null)
+        }
+        placedAnchorNode = null
+
         modelManager.clearCache()
         finish()
     }
@@ -304,34 +271,23 @@ class ARActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == CAMERA_PERMISSION_CODE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                arCoreManager.setCameraPermissionGranted(true)
-                initializeARCore(findViewById(R.id.tv_ar_status))
+                initializeAR(findViewById(R.id.tv_ar_status))
             } else {
-                Log.w(TAG, "Permissao de camera negada")
+                Log.w(TAG, "Permissão de câmera negada")
+                findViewById<MaterialTextView>(R.id.tv_ar_status).text =
+                    "Permissão de câmera negada"
             }
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        Log.d(TAG, "onResume")
-        arCoreManager.resumeSession()
-        startCameraCapture()
-    }
-
     override fun onPause() {
-        Log.d(TAG, "onPause")
-        arCoreManager.pauseSession()
-        cameraProvider.stopCamera()
         super.onPause()
+        stopTimer()
+        // ArFragment gerencia sessão internamente
     }
 
     override fun onDestroy() {
-        Log.d(TAG, "onDestroy")
         stopTimer()
-        arCoreManager.closeSession()
-        cameraProvider.stopCamera()
-        cameraProvider.shutdown()
         modelManager.clearCache()
         super.onDestroy()
     }

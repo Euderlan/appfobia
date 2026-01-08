@@ -16,10 +16,10 @@ class ModelManager(private val context: Context) {
     }
 
     private val modelMap = mapOf(
-        ExposureType.CLOSED_SPACES to "models/closed_room.gltf",
-        ExposureType.ROLLER_COASTER to "models/roller_coaster.gltf",
-        ExposureType.HEIGHTS to "models/heights_platform.gltf",
-        ExposureType.CROWDS to "models/crowd_room.gltf"
+        ExposureType.CLOSED_SPACES to "models/closed_room.glb",
+        ExposureType.ROLLER_COASTER to "models/closed_room.glb",
+        ExposureType.HEIGHTS to "models/closed_room.glb",
+        ExposureType.CROWDS to "models/closed_room.glb"
     )
 
     private val loadedModels = mutableMapOf<String, ModelRenderable>()
